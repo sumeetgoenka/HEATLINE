@@ -223,6 +223,18 @@
             line-height: 1.4;
         }
 
+        #debug {
+            position: absolute;
+            bottom: 240px;
+            right: 20px;
+            padding: 12px 14px;
+            width: 260px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
         .hidden {
             display: none;
         }
@@ -280,8 +292,11 @@
             Space - Handbrake<br />
             F - Enter/Exit Vehicle<br />
             C - Camera Mode<br />
-            R - Reset Position
+            R - Reset Position<br />
+            ~ - Debug
         </div>
+
+        <div id="debug" class="panel hidden"></div>
     </div>
 
     <script>
@@ -294,6 +309,10 @@
 
             const startButton = document.getElementById('start-button');
             const subtitle = document.querySelector('#start-screen .subtitle');
+            const startScreen = document.getElementById('start-screen');
+
+            window.__heatlineStartRequested = false;
+            window.__heatlineStart = null;
 
             const showError = (message) => {
                 if (subtitle) {
@@ -318,6 +337,24 @@
                     showError('Game script failed to load. Check file path.');
                 });
             };
+
+            const requestStart = () => {
+                window.__heatlineStartRequested = true;
+                if (startButton) {
+                    startButton.textContent = 'Starting...';
+                }
+                if (typeof window.__heatlineStart === 'function') {
+                    window.__heatlineStart();
+                } else if (subtitle) {
+                    subtitle.textContent = 'Loading world...';
+                }
+            };
+
+            if (startButton) {
+                startButton.addEventListener('click', requestStart);
+            } else if (startScreen) {
+                startScreen.addEventListener('click', requestStart);
+            }
 
             const tryLoad = (index) => {
                 if (index >= sources.length) {

@@ -1,14 +1,32 @@
 (() => {
-    if (!window.THREE) {
-        const startButton = document.getElementById('start-button');
-        const subtitle = document.querySelector('#start-screen .subtitle');
+    const startButton = document.getElementById('start-button');
+    const subtitle = document.querySelector('#start-screen .subtitle');
+
+    const showBootError = (message) => {
         if (subtitle) {
-            subtitle.textContent = 'Three.js failed to load. Check your network or CDN access.';
+            subtitle.textContent = message;
         }
         if (startButton) {
             startButton.disabled = true;
             startButton.textContent = 'Load Failed';
         }
+    };
+
+    window.addEventListener('error', (event) => {
+        if (!event || !event.message) {
+            showBootError('Boot error: unknown script failure.');
+            return;
+        }
+        showBootError(`Boot error: ${event.message}`);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        const message = event && event.reason ? event.reason.toString() : 'Unhandled promise rejection.';
+        showBootError(`Boot error: ${message}`);
+    });
+
+    if (!window.THREE) {
+        showBootError('Three.js failed to load. Check your network or CDN access.');
         return;
     }
 
@@ -63,8 +81,17 @@ class Input {
         this.pressed = new Set();
         this.mouse = { dx: 0, dy: 0 };
         this.pointerLocked = false;
+        this.blockedKeys = new Set([
+            'KeyW', 'KeyA', 'KeyS', 'KeyD',
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Space', 'ShiftLeft', 'ShiftRight',
+            'KeyF', 'KeyC', 'KeyR', 'Backquote'
+        ]);
 
         window.addEventListener('keydown', (event) => {
+            if (this.blockedKeys.has(event.code)) {
+                event.preventDefault();
+            }
             if (!this.keys.has(event.code)) {
                 this.pressed.add(event.code);
             }
@@ -72,6 +99,9 @@ class Input {
         });
 
         window.addEventListener('keyup', (event) => {
+            if (this.blockedKeys.has(event.code)) {
+                event.preventDefault();
+            }
             this.keys.delete(event.code);
         });
 
@@ -280,6 +310,18 @@ class World {
         }
         return false;
     }
+
+    isOutOfBounds(position, margin = 0) {
+        const half = this.size / 2 - margin;
+        return Math.abs(position.x) > half || Math.abs(position.z) > half;
+    }
+
+    clampToBounds(position, margin = 0) {
+        const half = this.size / 2 - margin;
+        position.x = clamp(position.x, -half, half);
+        position.z = clamp(position.z, -half, half);
+        return position;
+    }
 }
 
 class Vehicle {
@@ -434,6 +476,12 @@ class Vehicle {
 
     move(dt, world) {
         const next = this.position.clone().add(this.velocity.clone().multiplyScalar(dt));
+        if (world.isOutOfBounds(next, this.radius)) {
+            this.heading += Math.PI * 0.8;
+            this.speed *= -0.3;
+            this.mesh.rotation.y = this.heading;
+            return;
+        }
         if (!world.collides(next, this.radius)) {
             this.position.copy(next);
         } else {
@@ -571,7 +619,11 @@ class Player {
         this.velocity.lerp(desiredVelocity, clamp(dt * CONFIG.playerAccel, 0, 1));
 
         const next = this.position.clone().add(this.velocity.clone().multiplyScalar(dt));
-        if (!world.collides(next, 0.6)) {
+        if (world.isOutOfBounds(next, 1.2)) {
+            world.clampToBounds(next, 1.2);
+            this.velocity.multiplyScalar(0.2);
+            this.position.copy(next);
+        } else if (!world.collides(next, 0.6)) {
             this.position.copy(next);
         } else {
             this.velocity.multiplyScalar(0.2);
@@ -889,6 +941,15 @@ class Game {
         this.setupLights();
         this.bindEvents();
         this.started = false;
+        this.debugEl = document.getElementById('debug');
+        this.debugEnabled = false;
+        this.debugMessage = '';
+        this.fps = 0;
+        this.fpsFrames = 0;
+        this.fpsTimer = 0;
+        this.safehouseHint = 0;
+        this.runDiagnostics();
+        window.HEATLINE = this;
 
         this.updateCamera(0);
         this.animate();
@@ -909,11 +970,35 @@ class Game {
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        document.getElementById('start-button').addEventListener('click', () => {
-            document.getElementById('start-screen').classList.add('hidden');
-            this.started = true;
+        const startButton = document.getElementById('start-button');
+        window.__heatlineStart = () => this.startGame();
+
+        if (startButton) {
+            startButton.addEventListener('click', () => this.startGame());
+        }
+
+        if (window.__heatlineStartRequested) {
+            this.startGame();
+        }
+    }
+
+    startGame() {
+        if (this.started) {
+            return;
+        }
+        const startScreen = document.getElementById('start-screen');
+        if (startScreen) {
+            startScreen.classList.add('hidden');
+        }
+        this.started = true;
+        if (this.player && this.player.mesh) {
+            this.player.mesh.visible = !this.currentVehicle;
+        }
+        try {
             this.canvas.requestPointerLock();
-        });
+        } catch (error) {
+            this.ui.notify('Pointer lock blocked. Click the canvas to lock mouse.');
+        }
     }
 
     spawnTraffic() {
@@ -1045,6 +1130,9 @@ class Game {
         if (this.input.wasPressed('KeyC')) {
             this.cameraMode = (this.cameraMode + 1) % 3;
         }
+        if (this.input.wasPressed('Backquote')) {
+            this.toggleDebug();
+        }
         if (this.input.wasPressed('KeyR')) {
             this.player.position.copy(LOCATIONS.hideout);
             if (this.currentVehicle) {
@@ -1079,12 +1167,14 @@ class Game {
         }
 
         this.updateCollisions(dt);
+        this.updateSafehouse(dt);
         this.updateHeat(dt);
         this.updatePolice();
         this.missions.update(dt);
         this.updateCamera(dt);
         this.updateHUD();
         this.updateMinimap();
+        this.updateDebug(dt);
     }
 
     updateCollisions(dt) {
@@ -1139,6 +1229,21 @@ class Game {
                 this.currentVehicle.speed = 0;
             }
             this.ui.notify('Respawned at hideout');
+        }
+    }
+
+    updateSafehouse(dt) {
+        const playerPos = this.getFocusPosition();
+        const distance = playerPos.distanceTo(LOCATIONS.hideout);
+        if (distance < 18) {
+            this.heat = clamp(this.heat - dt * 18, 0, CONFIG.maxHeat);
+            this.player.health = clamp(this.player.health + dt * 12, 0, 100);
+            this.player.stamina = clamp(this.player.stamina + dt * 20, 0, 100);
+            this.safehouseHint -= dt;
+            if (this.safehouseHint <= 0) {
+                this.ui.notify('Safehouse: heat cooling down');
+                this.safehouseHint = 6;
+            }
         }
     }
 
@@ -1268,6 +1373,68 @@ class Game {
         ctx.restore();
     }
 
+    runDiagnostics() {
+        const results = [];
+        const assert = (label, condition) => {
+            results.push({ label, ok: Boolean(condition) });
+        };
+
+        assert('Canvas exists', Boolean(this.canvas));
+        assert('Start button exists', Boolean(document.getElementById('start-button')));
+        assert('Minimap context', Boolean(this.minimapCtx));
+        assert('World bounds', this.world.size > 0);
+        assert('Road nodes', this.world.roadNodes.length > 10);
+        assert('Buildings', this.world.buildingBounds.length > 10);
+        assert('Traffic vehicles', this.vehicles.length >= CONFIG.trafficCount);
+        assert('Pedestrians', this.pedestrians.length >= CONFIG.pedestrianCount);
+        assert('Mission steps', this.missions.missions.every((mission) => mission.steps.length > 0));
+        assert('No NaN player', Number.isFinite(this.player.position.x));
+
+        const failed = results.filter((item) => !item.ok);
+        if (failed.length > 0) {
+            this.debugMessage = `Diagnostics failed: ${failed.map((item) => item.label).join(', ')}`;
+            this.ui.notify('Diagnostics found issues. Toggle debug for details.');
+        } else {
+            this.debugMessage = 'Diagnostics passed.';
+        }
+
+        window.__heatlineDiagnostics = results;
+        console.table(results);
+    }
+
+    toggleDebug() {
+        this.debugEnabled = !this.debugEnabled;
+        if (this.debugEl) {
+            this.debugEl.classList.toggle('hidden', !this.debugEnabled);
+        }
+    }
+
+    updateDebug(dt) {
+        if (!this.debugEnabled || !this.debugEl) {
+            return;
+        }
+        this.fpsFrames += 1;
+        this.fpsTimer += dt;
+        if (this.fpsTimer >= 0.5) {
+            this.fps = Math.round(this.fpsFrames / this.fpsTimer);
+            this.fpsFrames = 0;
+            this.fpsTimer = 0;
+        }
+
+        const playerPos = this.getFocusPosition();
+        const wanted = this.getWantedLevel();
+        this.debugEl.textContent = [
+            `FPS: ${this.fps}`,
+            `Started: ${this.started}`,
+            `PointerLock: ${document.pointerLockElement === this.canvas}`,
+            `Heat: ${Math.round(this.heat)} (Wanted ${wanted})`,
+            `Vehicles: ${this.vehicles.length}`,
+            `Pedestrians: ${this.pedestrians.length}`,
+            `Pos: ${playerPos.x.toFixed(1)}, ${playerPos.z.toFixed(1)}`,
+            this.debugMessage
+        ].join('\\n');
+    }
+
     animate() {
         const dt = Math.min(this.clock.getDelta(), 0.05);
         if (this.started) {
@@ -1278,7 +1445,13 @@ class Game {
     }
 }
 
-window.addEventListener('load', () => {
+const boot = () => {
     new Game();
-});
+};
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    boot();
+} else {
+    window.addEventListener('load', boot);
+}
 })();
