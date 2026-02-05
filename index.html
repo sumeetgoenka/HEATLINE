@@ -176,6 +176,14 @@
             background: linear-gradient(90deg, #3bff9c, #a5ffcf);
         }
 
+        #boost-bar span {
+            background: linear-gradient(90deg, #4fc3ff, #a7e6ff);
+        }
+
+        #vehicle-bar span {
+            background: linear-gradient(90deg, #ffb347, #ffe1a8);
+        }
+
         #wanted {
             position: absolute;
             top: 20px;
@@ -185,6 +193,61 @@
             letter-spacing: 0.2rem;
             color: #ffd27a;
             text-shadow: 0 0 8px rgba(255, 184, 71, 0.6);
+        }
+
+        #pursuit {
+            position: absolute;
+            top: 58px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            letter-spacing: 0.15rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        #district {
+            position: absolute;
+            top: 76px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            letter-spacing: 0.2rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        #weather {
+            position: absolute;
+            top: 94px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            letter-spacing: 0.2rem;
+            text-transform: uppercase;
+            color: rgba(79, 195, 255, 0.75);
+        }
+
+        #compass {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        #compass .arrow {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--accent-2);
+            border-left: none;
+            border-bottom: none;
+            transform: rotate(45deg);
         }
 
         #minimap {
@@ -264,16 +327,28 @@
         </div>
 
         <div id="wanted"></div>
+        <div id="pursuit"></div>
+        <div id="district"></div>
+        <div id="weather"></div>
+        <div id="compass" class="panel hidden">
+            <div class="arrow" id="compass-arrow"></div>
+            <div id="compass-text">Objective</div>
+        </div>
 
         <div id="stats" class="panel">
             <div class="stat-row"><span>Speed</span><span id="speed">0</span></div>
             <div class="stat-row"><span>Heat</span><span id="heat">0</span></div>
             <div class="stat-row"><span>Mode</span><span id="mode">On Foot</span></div>
             <div class="stat-row"><span>Cash</span><span id="cash">$0</span></div>
+            <div class="stat-row"><span>Rep</span><span id="rep">0</span></div>
             <div style="margin-top: 10px;">Health</div>
             <div class="bar" id="health-bar"><span style="width: 100%"></span></div>
             <div style="margin-top: 8px;">Stamina</div>
             <div class="bar" id="stamina-bar"><span style="width: 100%"></span></div>
+            <div style="margin-top: 8px;">Boost</div>
+            <div class="bar" id="boost-bar"><span style="width: 100%"></span></div>
+            <div style="margin-top: 8px;">Vehicle</div>
+            <div class="bar" id="vehicle-bar"><span style="width: 100%"></span></div>
         </div>
 
         <div id="story" class="panel hidden"></div>
@@ -293,6 +368,7 @@
             F - Enter/Exit Vehicle<br />
             C - Camera Mode<br />
             R - Reset Position<br />
+            M - Restart Mission Step<br />
             ~ - Debug
         </div>
 
