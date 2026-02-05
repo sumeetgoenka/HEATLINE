@@ -2,6 +2,14 @@
     const startButton = document.getElementById('start-button');
     const subtitle = document.querySelector('#start-screen .subtitle');
 
+    window.__heatlineBooted = false;
+    window.__heatlineStart = () => {
+        window.__heatlineStartRequested = true;
+        if (window.HEATLINE) {
+            window.HEATLINE.startGame();
+        }
+    };
+
     const showBootError = (message) => {
         if (subtitle) {
             subtitle.textContent = message;
@@ -1445,9 +1453,18 @@ class Game {
     }
 }
 
-const boot = () => {
-    new Game();
-};
+    const boot = () => {
+        try {
+            new Game();
+            window.__heatlineBooted = true;
+            if (subtitle) {
+                subtitle.textContent = 'Ready to roll.';
+            }
+        } catch (error) {
+            console.error('Boot error:', error);
+            showBootError(`Boot error: ${error && error.message ? error.message : 'Unknown error'}`);
+        }
+    };
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     boot();

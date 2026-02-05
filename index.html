@@ -313,6 +313,8 @@
 
             window.__heatlineStartRequested = false;
             window.__heatlineStart = null;
+            window.__heatlineScriptLoaded = false;
+            window.__heatlineBooted = false;
 
             const showError = (message) => {
                 if (subtitle) {
@@ -333,7 +335,17 @@
             };
 
             const loadGame = () => {
-                loadScript('game.js', null, () => {
+                loadScript('game.js', () => {
+                    window.__heatlineScriptLoaded = true;
+                    if (subtitle && !window.__heatlineBooted) {
+                        subtitle.textContent = 'Booting city...';
+                    }
+                    window.setTimeout(() => {
+                        if (!window.__heatlineBooted) {
+                            showError('Game boot stalled. Check console for errors.');
+                        }
+                    }, 3000);
+                }, () => {
                     showError('Game script failed to load. Check file path.');
                 });
             };
@@ -346,7 +358,7 @@
                 if (typeof window.__heatlineStart === 'function') {
                     window.__heatlineStart();
                 } else if (subtitle) {
-                    subtitle.textContent = 'Loading world...';
+                    subtitle.textContent = 'Waiting for game boot...';
                 }
             };
 
