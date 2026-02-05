@@ -91,6 +91,11 @@
             cursor: pointer;
         }
 
+        #start-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         #start-screen .hint {
             font-size: 0.85rem;
             color: rgba(255, 255, 255, 0.6);
@@ -279,7 +284,51 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
-    <script src="game.js"></script>
+    <script>
+        (function () {
+            const sources = [
+                'https://unpkg.com/three@0.159.0/build/three.min.js',
+                'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/three.js/r159/three.min.js'
+            ];
+
+            const startButton = document.getElementById('start-button');
+            const subtitle = document.querySelector('#start-screen .subtitle');
+
+            const showError = (message) => {
+                if (subtitle) {
+                    subtitle.textContent = message;
+                }
+                if (startButton) {
+                    startButton.disabled = true;
+                    startButton.textContent = 'Load Failed';
+                }
+            };
+
+            const loadScript = (src, onload, onerror) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = onload;
+                script.onerror = onerror;
+                document.head.appendChild(script);
+            };
+
+            const loadGame = () => {
+                loadScript('game.js', null, () => {
+                    showError('Game script failed to load. Check file path.');
+                });
+            };
+
+            const tryLoad = (index) => {
+                if (index >= sources.length) {
+                    showError('Three.js failed to load. Network is blocking CDNs.');
+                    return;
+                }
+                loadScript(sources[index], loadGame, () => tryLoad(index + 1));
+            };
+
+            tryLoad(0);
+        })();
+    </script>
 </body>
 </html>

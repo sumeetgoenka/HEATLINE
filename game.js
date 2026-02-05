@@ -1,4 +1,19 @@
-const TAU = Math.PI * 2;
+(() => {
+    if (!window.THREE) {
+        const startButton = document.getElementById('start-button');
+        const subtitle = document.querySelector('#start-screen .subtitle');
+        if (subtitle) {
+            subtitle.textContent = 'Three.js failed to load. Check your network or CDN access.';
+        }
+        if (startButton) {
+            startButton.disabled = true;
+            startButton.textContent = 'Load Failed';
+        }
+        return;
+    }
+
+    const THREE = window.THREE;
+    const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const lerp = (a, b, t) => a + (b - a) * t;
 const angleLerp = (a, b, t) => {
@@ -1266,3 +1281,4 @@ class Game {
 window.addEventListener('load', () => {
     new Game();
 });
+})();
