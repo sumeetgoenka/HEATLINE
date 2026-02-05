@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HEATLINE: Three.js City Stories</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@400;600&display=swap');
+
+        :root {
+            --ink: #0b0d14;
+            --panel: rgba(9, 11, 18, 0.75);
+            --accent: #ffb347;
+            --accent-2: #4fc3ff;
+            --danger: #ff4d4d;
+            --ok: #3bff9c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top, #14223a, #05070f 70%);
+            color: #fff;
+        }
+
+        #gameCanvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(12px);
+        }
+
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: linear-gradient(120deg, rgba(5, 8, 16, 0.95), rgba(8, 12, 24, 0.85));
+            z-index: 10;
+            text-align: center;
+            pointer-events: auto;
+        }
+
+        #start-screen .logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            letter-spacing: 0.2rem;
+            color: #f5f6ff;
+        }
+
+        #start-screen .subtitle {
+            max-width: 520px;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        #start-button {
+            pointer-events: auto;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 999px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.1rem;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--accent), #ffd27a);
+            color: #1a140c;
+            cursor: pointer;
+        }
+
+        #start-screen .hint {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        #mission {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 16px 20px;
+            width: 280px;
+        }
+
+        #mission-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.4rem;
+            letter-spacing: 0.1rem;
+            color: var(--accent);
+        }
+
+        #mission-step {
+            margin-top: 8px;
+            line-height: 1.3;
+        }
+
+        #mission-timer {
+            margin-top: 10px;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--accent-2);
+        }
+
+        #story {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 22px;
+            max-width: 600px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 14px 18px;
+            width: 220px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+        }
+
+        #health-bar span {
+            background: linear-gradient(90deg, #ff4d4d, #ff8a8a);
+        }
+
+        #stamina-bar span {
+            background: linear-gradient(90deg, #3bff9c, #a5ffcf);
+        }
+
+        #wanted {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            letter-spacing: 0.2rem;
+            color: #ffd27a;
+            text-shadow: 0 0 8px rgba(255, 184, 71, 0.6);
+        }
+
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 200px;
+            height: 200px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(8, 12, 22, 0.7);
+        }
+
+        #minimap canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #notification {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 16px;
+            font-size: 0.9rem;
+        }
+
+        #help {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 14px 18px;
+            width: 250px;
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .glow {
+            box-shadow: 0 0 20px rgba(79, 195, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+        <div id="start-screen">
+            <div class="logo">HEATLINE</div>
+            <div class="subtitle">
+                A Three.js open-world slice: chase stories, steal rides, and outrun the city heat.
+            </div>
+            <button id="start-button">Start Story</button>
+            <div class="hint">Click to lock mouse. Press Esc to release.</div>
+        </div>
+
+        <div id="mission" class="panel glow">
+            <div id="mission-title">Loading...</div>
+            <div id="mission-step">Initializing world</div>
+            <div id="mission-timer"></div>
+        </div>
+
+        <div id="wanted"></div>
+
+        <div id="stats" class="panel">
+            <div class="stat-row"><span>Speed</span><span id="speed">0</span></div>
+            <div class="stat-row"><span>Heat</span><span id="heat">0</span></div>
+            <div class="stat-row"><span>Mode</span><span id="mode">On Foot</span></div>
+            <div class="stat-row"><span>Cash</span><span id="cash">$0</span></div>
+            <div style="margin-top: 10px;">Health</div>
+            <div class="bar" id="health-bar"><span style="width: 100%"></span></div>
+            <div style="margin-top: 8px;">Stamina</div>
+            <div class="bar" id="stamina-bar"><span style="width: 100%"></span></div>
+        </div>
+
+        <div id="story" class="panel hidden"></div>
+
+        <div id="notification" class="panel hidden"></div>
+
+        <div id="minimap" class="panel">
+            <canvas id="minimapCanvas" width="200" height="200"></canvas>
+        </div>
+
+        <div id="help" class="panel">
+            <strong>Controls</strong><br />
+            WASD - Move / Drive<br />
+            Mouse - Look<br />
+            Shift - Sprint / Boost<br />
+            Space - Handbrake<br />
+            F - Enter/Exit Vehicle<br />
+            C - Camera Mode<br />
+            R - Reset Position
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/three@0.159.0/build/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
